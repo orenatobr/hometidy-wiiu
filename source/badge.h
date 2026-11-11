@@ -38,6 +38,15 @@ bool decode(const std::vector<std::uint8_t>& file, std::vector<std::uint8_t>& rg
 ///     False (file untouched) when the TGA format is unsupported.
 bool apply(std::vector<std::uint8_t>& file);
 
+/// Removes the badge without a saved original, in place.
+///
+/// The badge covered the pixels under it, so they are rebuilt from the ring of
+/// pixels just outside the disc (an approximation; a saved original is always better).
+///
+/// Returns:
+///     False (file untouched) when the TGA format is unsupported.
+bool erase(std::vector<std::uint8_t>& file);
+
 /// True when the badge colours are present where apply() paints them.
 bool isMarked(const std::vector<std::uint8_t>& file);
 

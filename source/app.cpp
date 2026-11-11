@@ -23,7 +23,7 @@ constexpr int kGridRows = 2;
 constexpr int kTileW = 152;
 constexpr int kTileH = 206;
 constexpr int kTileGap = 16;
-constexpr const char* kVersion = "v1.0.1";
+constexpr const char* kVersion = "v1.0.4";
 
 std::string fmt(const char* f, int a) {
     char b[256];
@@ -73,11 +73,17 @@ void App::load() {
 
     layouts_ = tasks::findLayoutFiles(env_.sdRoot, env_.mlcRoot);
     catalog_ = titles::scan(env_.titleRoots);
+    allNames_ = catalog_;  // games, then system apps and SD homebrew, for sorting the Home pages
+    const auto sys = titles::scanSystemApps(env_.mlcRoot);
+    const auto brew = titles::scanHomebrew(env_.sdRoot);
+    allNames_.insert(sys.begin(), sys.end());
+    allNames_.insert(brew.begin(), brew.end());
+    platform::log("names: games=%zu system=%zu homebrew=%zu", catalog_.size(), sys.size(), brew.size());
     for (const auto& f : layouts_) platform::log("layout file: %s (%s)", f.path.c_str(), f.onSd ? "sd" : "mlc");
     for (const auto& r : env_.titleRoots) platform::log("title root: %s", r.c_str());
     platform::log("loaded: rules=%zu layouts=%zu titles=%zu", rules_.size(), layouts_.size(), catalog_.size());
 
-    for (const auto& kv : catalog_) markList_.push_back(&kv.second);
+    for (const auto& kv : catalog_) markList_.push_back(&kv.second);  // catalog_ holds games only
     std::stable_sort(markList_.begin(), markList_.end(), [&](const titles::Title* a, const titles::Title* b) {
         return sorter::less(sorter::makeKey(a->name, rules_), sorter::makeKey(b->name, rules_));
     });
@@ -161,7 +167,7 @@ void App::enterSort() {
         showMessage(tr(Id::FailTitle), statusText(tasks::Status::ReadFailed), col::red, Screen::Home);
         return;
     }
-    plan_ = tasks::planSort(bytes, catalog_, rules_);
+    plan_ = tasks::planSort(bytes, allNames_, rules_);
     platform::log("sort plan for %s: %zu bytes read, valid=%d, folders=%zu, changed=%d", layouts_[layoutIdx_].path.c_str(),
                   bytes.size(), plan_.has_value(), plan_ ? plan_->folders.size() : 0, plan_ ? plan_->changedFolders : 0);
     if (!plan_ || plan_->folders.empty()) {
@@ -266,7 +272,7 @@ void App::toggleMark() {
     tasks::Result r;
     if (ic.state == tasks::IconState::Marked) {
         r = tasks::unmarkIcon(t, dir);
-        if (r.status == tasks::Status::Ok) toast(tr(Id::ToastUnmarked), col::green);
+        if (r.status == tasks::Status::Ok) toast(tr(r.approximate ? Id::ToastUnmarkedApprox : Id::ToastUnmarked), col::green);
     } else {
         r = tasks::markIcon(t, dir);
         if (r.status == tasks::Status::Ok) toast(tr(Id::ToastMarked), col::green);
@@ -291,6 +297,11 @@ std::string App::statusText(tasks::Status s) const {
         case tasks::Status::Unsupported: return tr(Id::StUnsupported);
         default: return "";
     }
+}
+
+std::string App::folderTitle(const tasks::FolderPlan& f) const {
+    if (f.number == 0) return tr(Id::HomeName);
+    return f.name.empty() ? tr(Id::HintFolder) + " " + std::to_string(f.number) : f.name;
 }
 
 std::string App::layoutLabel(const tasks::LayoutFile& f) const {
@@ -440,32 +451,32 @@ void App::drawSort() {
     const int top = 140, h = 500;
     // folder list
     const int lw = 360;
-    for (std::size_t i = 0; i < plan_->folders.size() && i < 6; ++i) {
+    for (std::size_t i = 0; i < plan_->folders.size() && i < 7; ++i) {
         const auto& f = plan_->folders[i];
-        const int y = top + int(i) * 84;
+        const int y = top + int(i) * 70;
         const bool sel = int(i) == folderSel_;
-        if (sel) c_.fill(kMargin - 4, y - 4, lw + 8, 80, 18, col::green);
-        c_.card(kMargin, y, lw, 72, 16, sel ? col::raised : col::card, 2, col::line);
-        c_.text(f.name.empty() ? tr(Id::HintFolder) + " " + std::to_string(f.number) : f.name, Size::Body, col::text,
-                kMargin + 20, y + 8, Align::Left, lw - 40);
+        if (sel) c_.fill(kMargin - 4, y - 4, lw + 8, 70, 18, col::green);
+        c_.card(kMargin, y, lw, 62, 14, sel ? col::raised : col::card, 2, col::line);
+        c_.text(folderTitle(f), Size::Body, col::text, kMargin + 20, y + 4, Align::Left, lw - 40);
         std::string sub;
         gfx::Color subColor = col::muted;
         if (f.skipped) {
             sub = tr(Id::FolderSkipped);
             subColor = col::amber;
         } else if (f.changed) {
-            sub = fmt(tr(Id::FolderGames).c_str(), int(f.rows.size())) + "  -  " + fmt(tr(Id::FolderMoves).c_str(), movesIn(f));
+            sub = fmt(tr(f.number == 0 ? Id::HomeIcons : Id::FolderGames).c_str(), int(f.rows.size())) + "  -  " +
+                  fmt(tr(Id::FolderMoves).c_str(), movesIn(f));
             subColor = col::amber;
         } else {
-            sub = fmt(tr(Id::FolderGames).c_str(), int(f.rows.size())) + "  -  " + tr(Id::FolderSorted);
+            sub = fmt(tr(f.number == 0 ? Id::HomeIcons : Id::FolderGames).c_str(), int(f.rows.size())) + "  -  " + tr(Id::FolderSorted);
         }
-        c_.text(sub, Size::Small, subColor, kMargin + 20, y + 40, Align::Left, lw - 40);
+        c_.text(sub, Size::Small, subColor, kMargin + 20, y + 33, Align::Left, lw - 40);
     }
     // new order
     const int px = kMargin + lw + 24, pw = 1280 - kMargin - px;
     c_.card(px, top, pw, h, 20, col::card, 2, col::line);
     const auto& f = plan_->folders[folderSel_];
-    c_.text(f.name.empty() ? tr(Id::HintFolder) + " " + std::to_string(f.number) : f.name, Size::Large, col::text, px + 28, top + 14);
+    c_.text(folderTitle(f), Size::Large, col::text, px + 28, top + 14);
     c_.line(px + 20, top + 64, px + pw - 20, top + 64, 2, col::line);
 
     const int rowH = 38, visible = (h - 84) / rowH;
@@ -476,8 +487,14 @@ void App::drawSort() {
         const int y = top + 76 + (i - first) * rowH;
         if (i == rowSel_) c_.fill(px + 12, y - 2, pw - 24, rowH, 10, col::raised);
         c_.text(std::to_string(i + 1), Size::Small, col::muted, px + 64, y + 3, Align::Right);
-        c_.text(r.name, Size::Body, r.known ? col::text : col::muted, px + 84, y, Align::Left, pw - 84 - 190);
-        if (!r.known) c_.text(tr(Id::NotInstalled), Size::Small, col::muted, px + pw - 28, y + 3, Align::Right);
+        int nameX = px + 84;
+        if (r.folder) {  // small folder glyph
+            c_.fill(nameX, y + 9, 26, 18, 4, col::green);
+            c_.fill(nameX, y + 5, 12, 8, 3, col::green);
+            nameX += 38;
+        }
+        c_.text(r.name, Size::Body, r.known || r.folder ? col::text : col::muted, nameX, y, Align::Left, pw - (nameX - px) - 190);
+        if (!r.known && !r.folder) c_.text(tr(f.number == 0 ? Id::SystemIcon : Id::NotInstalled), Size::Small, col::muted, px + pw - 28, y + 3, Align::Right);
         else if (r.from != r.to) c_.text(fmt(tr(Id::WasPosition).c_str(), r.from + 1), Size::Small, col::amber, px + pw - 28, y + 3, Align::Right);
     }
     std::vector<std::pair<std::string, std::string>> hs = {

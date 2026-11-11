@@ -19,6 +19,9 @@
 namespace layout {
 
 constexpr std::size_t kEntrySize = 16;
+constexpr std::size_t kHomeSlots = 300;
+constexpr std::size_t kHomeUsbBase = kHomeSlots * kEntrySize;  // 0x12C0
+constexpr std::uint32_t kFolderType = 0x10;  ///< Entry type of a folder icon (id.lo = folder number).
 constexpr std::size_t kFolderBase = 0x2D24;
 constexpr std::size_t kFolderStride = 1976;
 constexpr std::size_t kFolderSlots = 60;
@@ -84,6 +87,21 @@ public:
     ///     False (and no change) when the folder is ambiguous or the order is
     ///     not a permutation of the current titles.
     bool setOrder(int number, const std::vector<TitleId>& order);
+
+    /// Icons on the Home pages (apps, folders, loose games) in position order.
+    ///
+    /// Args:
+    ///     ambiguous: Set to true when a position has both NAND and USB filled.
+    std::vector<Item> homeItems(bool* ambiguous = nullptr) const;
+
+    /// Rewrites the Home pages with the given icons, packed from position 0 with no gaps.
+    ///
+    /// Only the 600 Home entry slots change. Each icon keeps its NAND/USB side and type.
+    ///
+    /// Returns:
+    ///     False (and no change) when the Home is ambiguous or `order` is not a
+    ///     permutation of the current icons.
+    bool setHomeOrder(const std::vector<Item>& order);
 
     const std::vector<std::uint8_t>& bytes() const { return data_; }
 

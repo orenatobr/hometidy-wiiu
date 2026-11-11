@@ -1,6 +1,7 @@
 // Small POSIX file helpers shared by every module (work on the console and on the host).
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -12,6 +13,9 @@ bool readFile(const std::string& path, std::string& out);
 
 /// Reads a whole file as bytes. Returns false when it cannot be read.
 bool readBytes(const std::string& path, std::vector<std::uint8_t>& out);
+
+/// Reads the last `maxBytes` of a file (the whole file when it is smaller).
+bool readTail(const std::string& path, std::size_t maxBytes, std::vector<std::uint8_t>& out);
 
 /// Writes a file, replacing it. Returns false on any short write.
 bool writeBytes(const std::string& path, const std::vector<std::uint8_t>& data);

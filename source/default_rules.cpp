@@ -5,16 +5,15 @@
 const char* kDefaultRules = R"RULES(
 # pattern | series | year           (first match wins; patterns are normalized)
 # --- Zelda
-hyrule warriors            | zelda | 2014
-ocarina of time            | zelda | 1998
-majoras mask               | zelda | 2000
-wind waker                 | zelda | 2013   # HD release, as in the order approved on the console
-twilight princess          | zelda | 2016   # HD release
-skyward sword              | zelda | 2011
-breath of the wild         | zelda | 2017
-link to the past           | zelda | 1991
-links awakening            | zelda | 1993
-zelda                      | zelda | 1990
+ocarina of time            | legend of zelda | 1998
+majoras mask               | legend of zelda | 2000
+wind waker                 | legend of zelda | 2013   # HD release, as in the order approved on the console
+twilight princess          | legend of zelda | 2016   # HD release
+skyward sword              | legend of zelda | 2011
+breath of the wild         | legend of zelda | 2017
+link to the past           | legend of zelda | 1991
+links awakening            | legend of zelda | 1993
+zelda                      | legend of zelda | 1990
 # --- Mario Kart / Party / sports spin-offs
 mario kart wii             | mario kart | 2008
 mario kart 8               | mario kart | 2014
@@ -34,9 +33,9 @@ super mario sunshine       | super mario | 2002
 super mario galaxy more    | super mario | 2010
 super mario galaxy 2       | super mario | 2010
 super mario galaxy         | super mario | 2007
-new super mario bros u     | super mario | 2012
-new super mario bros wii   | super mario | 2009
-new super mario bros       | super mario | 2006
+new super mario bros u     | new super mario bros | 2012
+new super mario bros wii   | new super mario bros | 2009
+new super mario bros       | new super mario bros | 2006
 super mario 3d world       | super mario | 2013
 super mario maker          | super mario | 2015
 super mario world          | super mario | 1990

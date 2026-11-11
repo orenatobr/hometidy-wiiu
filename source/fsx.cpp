@@ -20,6 +20,23 @@ bool readBytes(const std::string& path, std::vector<std::uint8_t>& out) {
     return ok;
 }
 
+bool readTail(const std::string& path, std::size_t maxBytes, std::vector<std::uint8_t>& out) {
+    FILE* f = std::fopen(path.c_str(), "rb");
+    if (!f) return false;
+    out.clear();
+    bool ok = std::fseek(f, 0, SEEK_END) == 0;
+    const long size = ok ? std::ftell(f) : -1;
+    ok = ok && size >= 0;
+    if (ok) {
+        const long start = size > static_cast<long>(maxBytes) ? size - static_cast<long>(maxBytes) : 0;
+        ok = std::fseek(f, start, SEEK_SET) == 0;
+        out.resize(static_cast<std::size_t>(size - start));
+        ok = ok && std::fread(out.data(), 1, out.size(), f) == out.size();
+    }
+    std::fclose(f);
+    return ok;
+}
+
 bool readFile(const std::string& path, std::string& out) {
     std::vector<std::uint8_t> b;
     if (!readBytes(path, b)) return false;

@@ -119,6 +119,49 @@ bool apply(std::vector<std::uint8_t>& file) {
     return true;
 }
 
+bool erase(std::vector<std::uint8_t>& file) {
+    Tga t;
+    if (!inspect(file, t)) return false;
+    const Geometry g = geometryFor(t.w);
+    const std::vector<std::uint8_t> src = file;  // sample from the untouched copy
+    const double kPi = 3.14159265358979;
+
+    // Colours of the ring just outside the disc.
+    constexpr int kRing = 96;
+    struct Sample {
+        double x, y, c[4];
+    };
+    std::vector<Sample> ring;
+    for (int i = 0; i < kRing; ++i) {
+        const double a = 2 * kPi * i / kRing;
+        const double rx = g.cx + std::cos(a) * (g.radius + 2.5), ry = g.cy + std::sin(a) * (g.radius + 2.5);
+        const int sx = int(rx), sy = int(ry);
+        if (sx < 0 || sy < 0 || sx >= t.w || sy >= t.h) continue;  // part of the ring is off the icon
+        Sample s{rx, ry, {0, 0, 0, 0}};
+        const std::uint8_t* p = &src[pixelIndex(t, sx, sy)];
+        for (int c = 0; c < t.bytes; ++c) s.c[c] = p[c];
+        ring.push_back(s);
+    }
+    if (ring.empty()) return false;
+
+    // Inside the disc: blend the ring colours, nearer samples weigh more (smooth, no streaks).
+    for (int y = std::max(0, g.cy - g.radius - 1); y <= std::min(t.h - 1, g.cy + g.radius + 1); ++y) {
+        for (int x = std::max(0, g.cx - g.radius - 1); x <= std::min(t.w - 1, g.cx + g.radius + 1); ++x) {
+            if (std::hypot(x + 0.5 - g.cx, y + 0.5 - g.cy) > g.radius + 1.0) continue;
+            double sum[4] = {0, 0, 0, 0}, wsum = 0;
+            for (const Sample& s : ring) {
+                const double d = std::hypot(x + 0.5 - s.x, y + 0.5 - s.y);
+                const double w = 1.0 / (d * d * d + 1.0);
+                for (int c = 0; c < t.bytes; ++c) sum[c] += w * s.c[c];
+                wsum += w;
+            }
+            std::uint8_t* d4 = &file[pixelIndex(t, x, y)];
+            for (int c = 0; c < t.bytes; ++c) d4[c] = std::uint8_t(std::lround(sum[c] / wsum));
+        }
+    }
+    return true;
+}
+
 bool isMarked(const std::vector<std::uint8_t>& file) {
     Tga t;
     if (!inspect(file, t)) return false;
