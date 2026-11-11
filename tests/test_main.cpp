@@ -133,6 +133,15 @@ static void testSorter() {
     CHECK(names == want);
     if (names != want) for (auto& n : names) std::printf("   got: %s\n", n.c_str());
 
+    // names without spaces, as in some Wii forwarders, still match the table
+    {
+        const auto a = sorter::makeKey("MarioKartWii", def);
+        CHECK(a.series == "mario kart" && a.year == 2008);
+        const auto g2 = sorter::makeKey("SUPER MARIO GALAXY MORE", def);
+        CHECK(g2.series == "mario" && g2.year == 2010);
+        const auto z = sorter::makeKey("THE LEGEND OF ZELDA The Wind Waker HD", def);
+        CHECK(z.series == "zelda" && z.year == 2003);
+    }
     // natural numbers inside the same series/year
     CHECK(sorter::less(sorter::makeKey("Game 2", {}), sorter::makeKey("Game 10", {})));
 }
@@ -145,6 +154,16 @@ static void testTitles() {
     CHECK(titles::nameFromMeta(xml) == "Super Mario & Co \xC3\xA9");
     CHECK(titles::nameFromMeta("<longname_ja>Nihon</longname_ja>") == "Nihon");
     CHECK(titles::nameFromMeta("<x/>").empty());
+    // real console format: BOM, attributes on every tag, empty ja name, multi-line en name
+    const std::string real =
+        "\xEF\xBB\xBF<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<menu type=\"complex\" access=\"777\">\n"
+        "  <longname_ja type=\"string\" length=\"512\"></longname_ja>\n"
+        "  <longname_en type=\"string\" length=\"512\">THE LEGEND OF ZELDA\nThe Wind Waker HD</longname_en>\n"
+        "  <shortname_en type=\"string\" length=\"256\">Wind Waker</shortname_en>\n</menu>";
+    CHECK(titles::nameFromMeta(real) == "THE LEGEND OF ZELDA The Wind Waker HD");
+    CHECK(titles::nameFromMeta("<longname_en type=\"string\" length=\"512\">MarioKartWii</longname_en>") == "MarioKartWii");
+    CHECK(titles::nameFromMeta("<longname_en_x>nope</longname_en_x><longname_en a=\"1\">Yes</longname_en>") == "Yes");
+    CHECK(titles::nameFromMeta("<longname_en type=\"string\"/><longname_pt a=\"1\">Sim</longname_pt>") == "Sim");
 
     const std::string root = std::string(std::getenv("TMPDIR") ? std::getenv("TMPDIR") : "/tmp") + "/hometidy_titles_test";
     fsx::makeDirs(root + "/00050000/10143600/meta");

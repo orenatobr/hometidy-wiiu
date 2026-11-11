@@ -105,12 +105,23 @@ std::vector<Rule> parseRules(const std::string& text) {
     return rules;
 }
 
+namespace {
+std::string despace(const std::string& s) {
+    std::string out;
+    for (char c : s) {
+        if (c != ' ') out += c;
+    }
+    return out;
+}
+}  // namespace
+
 Key makeKey(const std::string& displayName, const std::vector<Rule>& rules) {
     Key k;
     k.name = normalize(displayName);
     k.series = k.name;
+    const std::string compact = despace(k.name);  // "MarioKartWii" must match "mario kart wii"
     for (const Rule& r : rules) {
-        if (k.name.find(r.pattern) != std::string::npos) {
+        if (k.name.find(r.pattern) != std::string::npos || compact.find(despace(r.pattern)) != std::string::npos) {
             k.series = r.series;
             k.year = r.year;
             break;
