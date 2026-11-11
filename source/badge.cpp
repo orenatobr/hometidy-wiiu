@@ -30,7 +30,7 @@ bool inspect(const std::vector<std::uint8_t>& f, Tga& t) {
     t.topDown = (f[17] & 0x20) != 0;
     t.bytes = bpp / 8;
     if (cmapType != 0 || imgType != 2 || (bpp != 24 && bpp != 32) ||
-        t.w < kMinSize || t.h < kMinSize || t.w > kMaxSize || t.h > kMaxSize) return false;
+        t.w != t.h || t.w < kMinSize || t.h < kMinSize || t.w > kMaxSize || t.h > kMaxSize) return false;
     t.pixels = std::size_t(kHeader) + idLen;
     return f.size() >= t.pixels + std::size_t(t.w) * t.h * t.bytes;
 }
