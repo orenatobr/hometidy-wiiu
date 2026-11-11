@@ -13,6 +13,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <ctime>
+#include <unistd.h>
 
 #include "fsx.h"
 
@@ -55,11 +56,13 @@ Repeater g_rep[4];
 std::uint32_t g_prevHold = 0;
 
 std::int64_t nowMs() { return OSTicksToMilliseconds(OSGetTime()); }
+std::int64_t g_t0 = 0;  // set in init()
 
 }  // namespace
 
 Env init() {
     Env env;
+    g_t0 = nowMs();
     VPADInit();
     KPADInit();
     WPADEnableURCC(1);
@@ -69,7 +72,14 @@ Env init() {
     env.appDir = env.sdRoot + "/wiiu/apps/HomeTidy";
     fsx::makeDirs(env.appDir);
     g_fontFallback = env.appDir + "/font.ttf";
-    g_log = std::fopen((env.appDir + "/hometidy.log").c_str(), "w");
+    // Keep the previous run's log: after a crash the new run must not erase the evidence.
+    const std::string logPath = env.appDir + "/hometidy.log";
+    const std::string prevPath = env.appDir + "/hometidy.prev.log";
+    std::remove(prevPath.c_str());
+    std::rename(logPath.c_str(), prevPath.c_str());
+    g_log = std::fopen(logPath.c_str(), "w");
+    log("HomeTidy start %s (log is flushed after every line; the previous run is in hometidy.prev.log)",
+        timestamp().c_str());
 
     g_mochaOk = Mocha_InitLibrary() == MOCHA_RESULT_SUCCESS;
     if (g_mochaOk) {
@@ -81,11 +91,11 @@ Env init() {
             env.mlcRoot = "storage_mlc:";
         }
         env.storageOk = usb || mlc;
-        log("mocha ok usb=%d mlc=%d", usb, mlc);
+        log("mocha init ok; mount storage_usb=%d storage_mlc=%d", usb, mlc);
     } else {
-        log("mocha init failed");
+        log("mocha init FAILED (not running under Aroma with Mocha?)");
     }
-    log("sd=%s ok=%d", env.sdRoot.c_str(), g_sdOk);
+    log("sd root=%s mounted=%d appDir=%s", env.sdRoot.c_str(), g_sdOk, env.appDir.c_str());
     return env;
 }
 
@@ -165,18 +175,24 @@ std::vector<std::uint8_t> fontBytes() {
     std::uint32_t size = 0;
     if (OSGetSharedData(OS_SHAREDDATATYPE_FONT_STANDARD, 0, &data, &size) && data && size > 0) {
         const auto* p = static_cast<const std::uint8_t*>(data);
+        log("font: system shared font, %u bytes", size);
         return std::vector<std::uint8_t>(p, p + size);
     }
-    log("shared font unavailable, trying fallbacks");
+    log("font: shared font unavailable, trying fallbacks");
     std::vector<std::uint8_t> out;
     // 2) a font the user placed next to the app config
-    if (fsx::readBytes(g_fontFallback, out) && !out.empty()) return out;
+    if (fsx::readBytes(g_fontFallback, out) && !out.empty()) {
+        log("font: using %s", g_fontFallback.c_str());
+        return out;
+    }
     // 3) the same font straight from the system shared-data titles
     for (const std::string& title : fsx::listDir("storage_mlc:/sys/title/0005001b")) {
         if (fsx::readBytes("storage_mlc:/sys/title/0005001b/" + title + "/content/CafeStd.ttf", out) && !out.empty()) {
+            log("font: using CafeStd.ttf from %s", title.c_str());
             return out;
         }
     }
+    log("font: NONE found, text will not be drawn");
     return {};
 }
 
@@ -191,12 +207,14 @@ void sleepMs(int ms) { OSSleepTicks(OSMillisecondsToTicks(ms)); }
 
 void log(const char* fmt, ...) {
     if (!g_log) return;
+    std::fprintf(g_log, "[%8lld ms] ", static_cast<long long>(nowMs() - g_t0));
     va_list ap;
     va_start(ap, fmt);
     std::vfprintf(g_log, fmt, ap);
     va_end(ap);
     std::fputc('\n', g_log);
     std::fflush(g_log);
+    fsync(fileno(g_log));  // survive a hard crash
 }
 
 }  // namespace platform

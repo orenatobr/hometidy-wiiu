@@ -209,6 +209,19 @@ static void testBadge() {
     const Bytes keep = rle;
     CHECK(!badge::apply(rle) && rle == keep);
     CHECK(!badge::isMarked(Bytes(5)));
+    // non-square icons are rejected: the probe spots would fall outside the image
+    {
+        Bytes wide = makeTga(64, 32, false);
+        wide[14] = 33; wide[15] = 0;  // 64 x 33
+        CHECK(!badge::isMarked(wide) && !badge::apply(wide));
+    }
+    // tiny or huge sizes are rejected before any pixel is read
+    for (int w : {1, 8, 31, 1025}) {
+        Bytes small = makeTga(w > 1024 ? 1 : w, 32, false);
+        small[12] = w & 255; small[13] = w >> 8; small[14] = w & 255; small[15] = w >> 8;
+        const Bytes keepSmall = small;
+        CHECK(!badge::isMarked(small) && !badge::apply(small) && small == keepSmall);
+    }
 }
 
 
@@ -216,7 +229,7 @@ static void testBadge() {
 
 static void testTasks() {
     const std::string root = std::string(std::getenv("TMPDIR") ? std::getenv("TMPDIR") : "/tmp") + "/hometidy_tasks_test";
-    std::system(("rm -rf '" + root + "'").c_str());
+    CHECK(std::system(("rm -rf '" + root + "'").c_str()) == 0);
     const std::string sd = root + "/sd", mlc = root + "/mlc";
     const std::string dir = sd + "/wiiu/homebrew_on_menu_plugin/FEH1/save/80000006";
     fsx::makeDirs(dir);

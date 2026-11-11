@@ -8,6 +8,8 @@ namespace badge {
 namespace {
 
 constexpr int kHeader = 18;
+constexpr int kMinSize = 32;    // smaller icons are not Wii U icons; the badge geometry would not fit
+constexpr int kMaxSize = 1024;
 constexpr int kGreen[3] = {34, 197, 94};  // green-500, as RGB
 constexpr int kWhite[3] = {255, 255, 255};
 
@@ -27,7 +29,8 @@ bool inspect(const std::vector<std::uint8_t>& f, Tga& t) {
     t.h = f[14] | (f[15] << 8);
     t.topDown = (f[17] & 0x20) != 0;
     t.bytes = bpp / 8;
-    if (cmapType != 0 || imgType != 2 || (bpp != 24 && bpp != 32) || t.w <= 0 || t.h <= 0) return false;
+    if (cmapType != 0 || imgType != 2 || (bpp != 24 && bpp != 32) ||
+        t.w != t.h || t.w < kMinSize || t.h < kMinSize || t.w > kMaxSize || t.h > kMaxSize) return false;
     t.pixels = std::size_t(kHeader) + idLen;
     return f.size() >= t.pixels + std::size_t(t.w) * t.h * t.bytes;
 }

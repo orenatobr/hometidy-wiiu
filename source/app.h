@@ -73,6 +73,7 @@ private:
     Screen screen_ = Screen::Loading;
     bool quit_ = false;
     int frame_ = 0;
+    Screen lastLogged_ = Screen::Message;  ///< Last screen written to the log.
     int busy_ = 0;  ///< Frames to wait so the "Working..." overlay shows before a slow job.
 
     // data

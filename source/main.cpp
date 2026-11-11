@@ -50,8 +50,9 @@ void capture(SDL_Renderer* r, const std::string& path) {
 
 int main(int, char**) {
     platform::Env env = platform::init();
+    platform::log("storageOk=%d titleRoots=%zu", env.storageOk, env.titleRoots.size());
     if (SDL_Init(SDL_INIT_VIDEO) != 0 || TTF_Init() != 0) {
-        platform::log("SDL init failed: %s", SDL_GetError());
+        platform::log("SDL/TTF init FAILED: %s", SDL_GetError());
         platform::shutdown();
         return 1;
     }
@@ -67,9 +68,11 @@ int main(int, char**) {
         return 1;
     }
     SDL_RenderSetLogicalSize(renderer, gfx::Canvas::kWidth, gfx::Canvas::kHeight);
+    platform::log("SDL window and renderer ready");
 
     {
         gfx::Canvas canvas(renderer, platform::fontBytes());
+        platform::log("canvas ready, font=%d", canvas.hasFont());
         App app(canvas, env);
         bool quit = false;
 
@@ -99,7 +102,10 @@ int main(int, char**) {
         while (!quit && !app.wantsQuit()) {
             SDL_Event e;
             while (SDL_PollEvent(&e)) {
-                if (e.type == SDL_QUIT) quit = true;
+                if (e.type == SDL_QUIT) {
+                    platform::log("SDL_QUIT received");
+                    quit = true;
+                }
             }
             app.update(platform::poll());
             app.draw();
@@ -107,10 +113,12 @@ int main(int, char**) {
         }
     }
 
+    platform::log("main loop ended, shutting down");
     TTF_Quit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+    platform::log("clean exit");
     platform::shutdown();
     return 0;
 }
