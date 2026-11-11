@@ -7,13 +7,13 @@ A Wii U Aroma app that does two chores you would otherwise do over FTP:
 
 It runs on the console, with the GamePad or a Pro Controller. No computer needed.
 
-> **Status:** v1.0.0 passes its host tests and renders correctly on a desktop preview, but it has **not been confirmed on a real console yet**. Back up your SD card first. The app also saves its own backups (see below).
+> **Status:** confirmed working on a real Wii U (Aroma, Homebrew on Menu) with v1.0.4. Back up your SD card first; the app also saves its own backups (see below). The approximate removal of a green check made by another tool is checked on a desktop copy of an icon only.
 
 ## Install
 
 1. Download `HomeTidy.wuhb` from the [latest release](../../releases/latest).
-2. Copy it to `sd:/wiiu/apps/HomeTidy.wuhb`.
-3. Start it from the Aroma menu (or from the Wii U Menu if you use the Homebrew on Menu plugin).
+2. Copy it to `sd:/wiiu/apps/HomeTidy/HomeTidy.wuhb`, then restart the console so the Homebrew on Menu plugin lists it (or start it from the Aroma menu).
+3. Start it from the Wii U Menu (with the Homebrew on Menu plugin) or from the Aroma menu.
 
 Needs Aroma with the Mocha CFW (the same setup used by FTPiiU). Press **Y** on the first screen to switch between English and Brazilian Portuguese.
 
@@ -21,14 +21,14 @@ Needs Aroma with the Mocha CFW (the same setup used by FTPiiU). Press **Y** on t
 
 | Job | What it touches | Safety |
 | --- | --- | --- |
-| Sort Home | `BaristaAccountSaveFile.dat`, the Wii U Menu layout file. With the Homebrew on Menu plugin it lives on the SD card at `wiiu/homebrew_on_menu_plugin/<serial>/save/<account>/`; otherwise in the console storage. | Backup first to `sd:/wiiu/apps/HomeTidy/backup/`, write, read back, and read again after 2 seconds. Only the 120 entry slots of a folder change. |
-| Mark as completed | `meta/iconTex.tga` of the game, in place. Only pixels in the top-right corner change. | The first original is saved to `backup/icons/`. Press A on a marked game to restore it. |
+| Sort Home | `BaristaAccountSaveFile.dat`, the Wii U Menu layout file. The Home pages are sorted too: unnamed system icons first, then apps A-Z (system apps and SD homebrew), then the folders in their current order, with no empty positions. With the Homebrew on Menu plugin it lives on the SD card at `wiiu/homebrew_on_menu_plugin/<serial>/save/<account>/`; otherwise in the console storage. | Backup first to `sd:/wiiu/apps/HomeTidy/backup/`, write, read back, and read again after 2 seconds. Only the 120 entry slots of a folder change. |
+| Mark as completed | `meta/iconTex.tga` of the game, in place. Only pixels in the top-right corner change. | The first original is saved to `backup/icons/`. Press A on a marked game to restore it. A check made by another tool has no saved original: its pixels are rebuilt from the surroundings (approximate), or put the original TGA in `backup/icons/<titleid>_iconTex_original.tga` first. |
 
 The Wii U Menu keeps its layout in RAM and overwrites the file when it closes. HomeTidy is a separate title, so the menu is not running while you use it, and it reads the new order the next time it starts. Close the app (A on the final screen) instead of opening the Home menu first.
 
 ## Series table
 
-Order inside a series follows release year, and a series sits in the list under its own name (for example *Hyrule Warriors* goes under **Zelda**). The built-in table is in `source/default_rules.cpp` and comes from memory, so some years can be off. To change it without rebuilding, create `sd:/wiiu/apps/HomeTidy/series.txt`:
+Order inside a series follows release year, and a series sits in the list under its own name without the leading article (every *The Legend of Zelda* game goes under **Legend of Zelda**, while *Hyrule Warriors* and *New Super Mario Bros* are sorted on their own). The built-in table is in `source/default_rules.cpp` and comes from memory, so some years can be off. To change it without rebuilding, create `sd:/wiiu/apps/HomeTidy/series.txt`:
 
 ```text
 # pattern | series | year    (first match wins, your lines win over the built-in ones)
