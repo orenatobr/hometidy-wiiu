@@ -133,9 +133,9 @@ static void testSorter() {
         return sorter::less(sorter::makeKey(a, def), sorter::makeKey(b, def));
     });
     const std::vector<std::string> want = {
-        "Angry Birds", "Bayonetta 2", "Mario Kart Wii", "Mario Kart 8", "Pok\xC3\xA9mon Rumble U",
-        "Super Mario Galaxy", "Super Mario Galaxy 2", "Super Mario 3D World", "Xenoblade Chronicles",
-        "Zelda: The Wind Waker HD", "Hyrule Warriors", "The Legend of Zelda: Breath of the Wild"};
+        "Angry Birds", "Bayonetta 2", "Hyrule Warriors", "Zelda: The Wind Waker HD",
+        "The Legend of Zelda: Breath of the Wild", "Mario Kart Wii", "Mario Kart 8", "Pok\xC3\xA9mon Rumble U",
+        "Super Mario Galaxy", "Super Mario Galaxy 2", "Super Mario 3D World", "Xenoblade Chronicles"};
     CHECK(names == want);
     if (names != want) for (auto& n : names) std::printf("   got: %s\n", n.c_str());
 
@@ -143,10 +143,16 @@ static void testSorter() {
     {
         const auto a = sorter::makeKey("MarioKartWii", def);
         CHECK(a.series == "mario kart" && a.year == 2008);
+        // Hyrule Warriors is not a Zelda game for sorting; New Super Mario Bros is its own series
+        const auto hw = sorter::makeKey("Hyrule Warriors", def);
+        CHECK(hw.series == "hyrule warriors");
+        const auto nsmb = sorter::makeKey("New SUPER MARIO BROS. U + New SUPER LUIGI U", def);
+        CHECK(nsmb.series == "new super mario bros" && nsmb.year == 2012);
+        CHECK(sorter::makeKey("The Legend of Zelda", def).series == "legend of zelda");
         const auto g2 = sorter::makeKey("SUPER MARIO GALAXY MORE", def);
         CHECK(g2.series == "super mario" && g2.year == 2010);
         const auto z = sorter::makeKey("THE LEGEND OF ZELDA The Wind Waker HD", def);
-        CHECK(z.series == "zelda" && z.year == 2013);
+        CHECK(z.series == "legend of zelda" && z.year == 2013);
     }
     // natural numbers inside the same series/year
     CHECK(sorter::less(sorter::makeKey("Game 2", {}), sorter::makeKey("Game 10", {})));
