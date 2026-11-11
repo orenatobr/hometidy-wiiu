@@ -73,7 +73,9 @@ void App::load() {
 
     layouts_ = tasks::findLayoutFiles(env_.sdRoot, env_.mlcRoot);
     catalog_ = titles::scan(env_.titleRoots);
-    platform::log("layouts=%zu titles=%zu", layouts_.size(), catalog_.size());
+    for (const auto& f : layouts_) platform::log("layout file: %s (%s)", f.path.c_str(), f.onSd ? "sd" : "mlc");
+    for (const auto& r : env_.titleRoots) platform::log("title root: %s", r.c_str());
+    platform::log("loaded: rules=%zu layouts=%zu titles=%zu", rules_.size(), layouts_.size(), catalog_.size());
 
     for (const auto& kv : catalog_) markList_.push_back(&kv.second);
     std::stable_sort(markList_.begin(), markList_.end(), [&](const titles::Title* a, const titles::Title* b) {
@@ -93,6 +95,7 @@ void App::load() {
             }
         }
     }
+    platform::log("home: %d games in %d folders", homeGames_, homeFolders_);
     screen_ = Screen::Home;
 }
 
@@ -100,6 +103,10 @@ void App::load() {
 
 void App::update(const platform::Input& in) {
     ++frame_;
+    if (screen_ != lastLogged_) {
+        platform::log("screen -> %d", static_cast<int>(screen_));
+        lastLogged_ = screen_;
+    }
     if (toastFrames_ > 0) --toastFrames_;
 
     if (screen_ == Screen::Loading) {
@@ -155,6 +162,8 @@ void App::enterSort() {
         return;
     }
     plan_ = tasks::planSort(bytes, catalog_, rules_);
+    platform::log("sort plan for %s: %zu bytes read, valid=%d, folders=%zu, changed=%d", layouts_[layoutIdx_].path.c_str(),
+                  bytes.size(), plan_.has_value(), plan_ ? plan_->folders.size() : 0, plan_ ? plan_->changedFolders : 0);
     if (!plan_ || plan_->folders.empty()) {
         showMessage(tr(Id::SortTitle), tr(Id::NoLayout), col::amber, Screen::Home);
         plan_.reset();

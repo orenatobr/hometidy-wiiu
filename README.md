@@ -46,7 +46,8 @@ wiiu/apps/HomeTidy/
   config.txt                                        language (lang=en or lang=pt)
   series.txt                                        optional, your series rules
   font.ttf                                          optional, only if the system font is unavailable
-  hometidy.log                                      what the last run did
+  hometidy.log                                      what this run did (flushed line by line)
+  hometidy.prev.log                                 the run before, kept in case of a crash
 ```
 
 To undo a sort, copy a backup over the layout file (with the console off, or from another app while the Wii U Menu is closed).
