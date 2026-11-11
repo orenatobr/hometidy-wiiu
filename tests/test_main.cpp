@@ -209,6 +209,13 @@ static void testBadge() {
     const Bytes keep = rle;
     CHECK(!badge::apply(rle) && rle == keep);
     CHECK(!badge::isMarked(Bytes(5)));
+    // tiny or huge sizes are rejected before any pixel is read
+    for (int w : {1, 8, 31, 1025}) {
+        Bytes small = makeTga(w > 1024 ? 1 : w, 32, false);
+        small[12] = w & 255; small[13] = w >> 8; small[14] = w & 255; small[15] = w >> 8;
+        const Bytes keepSmall = small;
+        CHECK(!badge::isMarked(small) && !badge::apply(small) && small == keepSmall);
+    }
 }
 
 
