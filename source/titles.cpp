@@ -3,6 +3,7 @@
 #include <dirent.h>
 
 #include <cstdio>
+#include <cctype>
 #include <cstdlib>
 
 #include "fsx.h"
@@ -107,6 +108,78 @@ std::map<std::uint64_t, Title> scan(const std::vector<std::string>& roots) {
                 const std::string name = nameFromMeta(xml);
                 if (name.empty()) continue;
                 out[id] = {id, name, dir};
+            }
+        }
+    }
+    return out;
+}
+
+std::map<std::uint64_t, Title> scanSystemApps(const std::string& mlcRoot) {
+    std::map<std::uint64_t, Title> out;
+    if (mlcRoot.empty()) return out;
+    const std::string typeDir = mlcRoot + "/sys/title/00050010";
+    for (const std::string& entry : fsx::listDir(typeDir)) {
+        if (entry.size() != 8) continue;
+        const std::uint64_t id = (std::uint64_t(0x00050010) << 32) | std::strtoull(entry.c_str(), nullptr, 16);
+        std::string xml;
+        if (!fsx::readFile(typeDir + "/" + entry + "/meta/meta.xml", xml)) continue;
+        const std::string name = nameFromMeta(xml);
+        if (!name.empty()) out[id] = {id, name, typeDir + "/" + entry};
+    }
+    return out;
+}
+
+std::uint64_t homebrewId(const std::string& relativePath) {
+    std::uint32_t h = 0;  // same polynomial hash as the plugin: h = 37 * h + c
+    for (unsigned char c : relativePath) h = 37 * h + c;
+    return (std::uint64_t(0x0005000F) << 32) | h;
+}
+
+std::string nameFromWuhbMeta(const std::vector<std::uint8_t>& tail) {
+    const std::string text(tail.begin(), tail.end());
+    const std::string key = "longname=";
+    const auto b = text.find(key);
+    if (b == std::string::npos) return "";
+    const auto e = text.find_first_of("\r\n", b);
+    return collapse(text.substr(b + key.size(), e == std::string::npos ? std::string::npos : e - b - key.size()));
+}
+
+std::map<std::uint64_t, Title> scanHomebrew(const std::string& sdRoot) {
+    std::map<std::uint64_t, Title> out;
+    const std::string base = sdRoot + "/wiiu/apps";
+    auto isApp = [](const std::string& n) {
+        const auto dot = n.rfind('.');
+        if (dot == std::string::npos) return false;
+        std::string ext = n.substr(dot);
+        for (char& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return ext == ".wuhb" || ext == ".rpx";
+    };
+    auto add = [&](const std::string& rel) {
+        std::vector<std::uint8_t> tail;
+        std::string name;
+        if (rel.size() > 5 && rel.compare(rel.size() - 5, 5, ".wuhb") == 0 &&
+            fsx::readTail(sdRoot + "/" + rel, 128 * 1024, tail)) {
+            name = nameFromWuhbMeta(tail);
+        }
+        if (name.empty()) {  // file name without extension
+            const auto slash = rel.rfind('/');
+            name = rel.substr(slash + 1, rel.rfind('.') - slash - 1);
+        }
+        const std::uint64_t id = homebrewId(rel);
+        out[id] = {id, name, sdRoot + "/" + rel};
+    };
+    for (const std::string& a : fsx::listDir(base)) {
+        if (isApp(a)) {
+            add("wiiu/apps/" + a);
+            continue;
+        }
+        for (const std::string& b : fsx::listDir(base + "/" + a)) {
+            if (isApp(b)) {
+                add("wiiu/apps/" + a + "/" + b);
+                continue;
+            }
+            for (const std::string& c : fsx::listDir(base + "/" + a + "/" + b)) {
+                if (isApp(c)) add("wiiu/apps/" + a + "/" + b + "/" + c);
             }
         }
     }

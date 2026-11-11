@@ -35,6 +35,12 @@ static void put32(Bytes& b, std::size_t off, std::uint32_t v) {
 
 static Bytes makeLayout(int folders = 60) {
     Bytes b(layout::kFolderBase + std::size_t(folders) * layout::kFolderStride, 0xAA);
+    for (std::size_t i = 0; i < layout::kHomeSlots; ++i) {  // empty Home pages
+        for (int side = 0; side < 2; ++side) {
+            const std::size_t e = (side ? layout::kHomeUsbBase : 0) + i * layout::kEntrySize;
+            put32(b, e, 0); put32(b, e + 4, 0); put32(b, e + 8, side ? 2 : 1); put32(b, e + 12, 0);
+        }
+    }
     for (int f = 1; f <= folders; ++f) {
         const std::size_t base = layout::kFolderBase + std::size_t(f - 1) * layout::kFolderStride;
         for (std::size_t i = 0; i < layout::kFolderSlots; ++i) {
@@ -307,10 +313,157 @@ static void testTasks() {
     CHECK(tasks::unmarkIcon(t, backups).status == tasks::Status::Ok);
     CHECK(tasks::fileEquals(t.dir + "/meta/iconTex.tga", icon));
     CHECK(tasks::iconState(t) == tasks::IconState::Plain);
+    // a mark without a saved backup (older tool) is removed approximately instead of failing
+    {
+        titles::Title old{0x0005000010143601ULL, "Old", sd + "/old_title"};
+        fsx::makeDirs(old.dir + "/meta");
+        Bytes marked = icon;
+        CHECK(badge::apply(marked));
+        fsx::writeBytes(old.dir + "/meta/iconTex.tga", marked);
+        CHECK(tasks::iconState(old) == tasks::IconState::Marked);
+        auto res = tasks::unmarkIcon(old, backups);
+        CHECK(res.status == tasks::Status::Ok && res.approximate);
+        CHECK(tasks::iconState(old) == tasks::IconState::Plain);
+        // outside the disc the pixels are untouched; inside they are close to the original surroundings
+        Bytes now;
+        fsx::readBytes(old.dir + "/meta/iconTex.tga", now);
+        CHECK(now.size() == icon.size() && !badge::isMarked(now));
+        int far = 0;
+        for (std::size_t i = 18; i + 4 <= now.size() - 26; i += 4) far += (now[i] != icon[i]) ? 1 : 0;
+        CHECK(far == 0);  // the fixture is a flat colour, so the rebuilt disc matches it exactly
+        // an unmarked icon with no backup still reports NoBackup
+        titles::Title plain{0x0005000010143602ULL, "Plain", sd + "/plain_title"};
+        fsx::makeDirs(plain.dir + "/meta");
+        fsx::writeBytes(plain.dir + "/meta/iconTex.tga", icon);
+        CHECK(tasks::unmarkIcon(plain, backups).status == tasks::Status::NoBackup);
+    }
     // marking again keeps the very first original
     CHECK(tasks::markIcon(t, backups).status == tasks::Status::Ok);
     CHECK(tasks::unmarkIcon(t, backups).status == tasks::Status::Ok);
     CHECK(tasks::fileEquals(t.dir + "/meta/iconTex.tga", icon));
+}
+
+
+// ------------------------------------------------------------ home pages --
+
+static void setHome(Bytes& b, bool usb, int slot, std::uint32_t hi, std::uint32_t lo, std::uint32_t type) {
+    const std::size_t e = (usb ? layout::kHomeUsbBase : 0) + std::size_t(slot) * layout::kEntrySize;
+    put32(b, e, hi); put32(b, e + 4, lo); put32(b, e + 8, type);
+}
+
+static void testHome() {
+    Bytes raw = makeLayout();
+    setHome(raw, false, 0, 0x50010, 0x10055000, 5);   // unnamed special icon
+    setHome(raw, false, 3, 0x50010, 0x1004a200, 1);   // Mii Maker
+    setHome(raw, true, 4, 0x5000f, 0x716c9ba1, 2);    // homebrew on the USB side
+    setHome(raw, false, 21, 0, 2, layout::kFolderType);  // folder 2, "Wii"
+    setHome(raw, false, 23, 0, 1, layout::kFolderType);  // folder 1, "Wii U"
+    setHome(raw, false, 30, 0x50010, 0x1005a200, 1);  // Wii U Chat after a long gap
+    auto l = layout::Layout::parse(raw);
+    bool amb = true;
+    auto items = l->homeItems(&amb);
+    CHECK(!amb && items.size() == 6 && items[2].onUsb && items[3].id.lo == 2);
+
+    // pack with no gaps, keeping side and type
+    std::vector<layout::Item> order = {items[5], items[0], items[4], items[3], items[1], items[2]};
+    CHECK(l->setHomeOrder(order));
+    auto packed = l->homeItems();
+    CHECK(packed.size() == 6 && packed[0].id.lo == 0x1005a200 && packed[1].type == 5 && packed[5].onUsb);
+    const std::size_t homeEnd = layout::kHomeUsbBase + layout::kHomeSlots * layout::kEntrySize;
+    std::size_t outside = 0;
+    for (std::size_t i = homeEnd; i < raw.size(); ++i) outside += raw[i] != l->bytes()[i];
+    CHECK(outside == 0);
+    // slots 0..5 are filled and 6 is empty on both sides
+    bool gap = false;
+    for (std::size_t i = 0; i < 6; ++i) {
+        const bool n = l->bytes()[i * 16 + 4] || l->bytes()[i * 16 + 7] || l->bytes()[i * 16 + 3];
+        const bool u = l->bytes()[layout::kHomeUsbBase + i * 16 + 7] || l->bytes()[layout::kHomeUsbBase + i * 16 + 3];
+        gap = gap || !(n || u);
+    }
+    CHECK(!gap);
+    // rejected orders
+    auto keep = l->bytes();
+    CHECK(!l->setHomeOrder({items[0]}));
+    auto bad = order;
+    bad[0].id.lo ^= 1;
+    CHECK(!l->setHomeOrder(bad));
+    CHECK(keep == l->bytes());
+}
+
+static void testHomebrewNames() {
+    // ids follow the Homebrew on Menu plugin hash (checked against ids stored on a real console)
+    CHECK(titles::homebrewId("wiiu/apps/AromaUpdater/AromaUpdater.wuhb") == 0x0005000F716c9ba1ULL);
+    CHECK(titles::homebrewId("wiiu/apps/appstore/appstore.wuhb") == 0x0005000Fede5da6fULL);
+    CHECK(titles::homebrewId("wiiu/apps/wafel_installer/wafel_installer.wuhb") == 0x0005000Fe33ebecfULL);
+    const std::string ini = "\x01\x02[menu]\nlongname=Aroma Updater\nshortname=Aroma\nauthor=x\n\x00\x1f\x8b";
+    CHECK(titles::nameFromWuhbMeta(Bytes(ini.begin(), ini.end())) == "Aroma Updater");
+    CHECK(titles::nameFromWuhbMeta(Bytes(10)).empty());
+
+    const std::string root = std::string(std::getenv("TMPDIR") ? std::getenv("TMPDIR") : "/tmp") + "/hometidy_brew_test";
+    CHECK(std::system(("rm -rf '" + root + "'").c_str()) == 0);
+    fsx::makeDirs(root + "/wiiu/apps/AromaUpdater");
+    fsx::makeDirs(root + "/wiiu/apps/NoMeta");
+    fsx::writeBytes(root + "/wiiu/apps/AromaUpdater/AromaUpdater.wuhb", Bytes(300000, 7));  // big file, meta at the end
+    Bytes withMeta(300000, 7);
+    withMeta.insert(withMeta.end(), ini.begin(), ini.end());
+    withMeta.insert(withMeta.end(), 20000, 9);
+    fsx::writeBytes(root + "/wiiu/apps/AromaUpdater/AromaUpdater.wuhb", withMeta);
+    fsx::writeBytes(root + "/wiiu/apps/NoMeta/NoMeta.rpx", Bytes(10, 1));
+    fsx::writeBytes(root + "/wiiu/apps/notes.txt", Bytes(10, 1));
+    auto brew = titles::scanHomebrew(root);
+    CHECK(brew.size() == 2);
+    CHECK(brew[0x0005000F716c9ba1ULL].name == "Aroma Updater");
+    CHECK(brew[titles::homebrewId("wiiu/apps/NoMeta/NoMeta.rpx")].name == "NoMeta");
+
+    fsx::makeDirs(root + "/mlc/sys/title/00050010/1004a200/meta");
+    const std::string xml = "<longname_en type=\"string\" length=\"512\">Mii Maker</longname_en>";
+    fsx::writeBytes(root + "/mlc/sys/title/00050010/1004a200/meta/meta.xml", Bytes(xml.begin(), xml.end()));
+    auto sys = titles::scanSystemApps(root + "/mlc");
+    CHECK(sys.size() == 1 && sys[0x000500101004a200ULL].name == "Mii Maker");
+}
+
+static void testHomePlan() {
+    Bytes raw = makeLayout();
+    setHome(raw, false, 0, 0x50010, 0x10055000, 5);   // unnamed
+    setHome(raw, false, 1, 0x50010, 0x1004a200, 1);   // Mii Maker
+    setHome(raw, false, 2, 0x50010, 0x1005a200, 1);   // Wii U Chat
+    setHome(raw, false, 3, 0x5000f, 0x716c9ba1, 1);   // Aroma Updater
+    setHome(raw, false, 4, 0x50010, 0x1004c200, 1);   // Daily Log
+    setHome(raw, false, 21, 0, 1, layout::kFolderType);
+    setHome(raw, false, 23, 0, 2, layout::kFolderType);
+    const std::size_t info1 = layout::kFolderBase + layout::kInfoOffset;
+    const std::size_t info2 = layout::kFolderBase + layout::kFolderStride + layout::kInfoOffset;
+    const char16_t n1[] = u"Wii U", n2[] = u"Wii";
+    for (int i = 0; i < 5; ++i) { raw[info1 + i * 2] = n1[i] >> 8; raw[info1 + i * 2 + 1] = n1[i] & 0xFF; }
+    for (int i = 0; i < 3; ++i) { raw[info2 + i * 2] = n2[i] >> 8; raw[info2 + i * 2 + 1] = n2[i] & 0xFF; }
+    raw[info1 + 10] = raw[info1 + 11] = raw[info2 + 6] = raw[info2 + 7] = 0;
+    setEntry(raw, 1, true, 0, 0x50000, 0x20);
+    setEntry(raw, 1, true, 1, 0x50000, 0x10);
+
+    std::map<std::uint64_t, titles::Title> names;
+    auto add = [&](std::uint64_t id, const char* n) { names[id] = {id, n, ""}; };
+    add(0x000500101004a200ULL, "Mii Maker");
+    add(0x000500101005a200ULL, "Wii U Chat");
+    add(0x0005000F716c9ba1ULL, "Aroma Updater");
+    add(0x000500101004c200ULL, "Daily Log");
+    add(0x0005000000000020ULL, "Zebra");
+    add(0x0005000000000010ULL, "Apple");
+    auto plan = tasks::planSort(raw, names, sorter::parseRules(kDefaultRules));
+    CHECK(plan && plan->folders.size() == 2 && plan->folders[0].number == 0 && plan->folders[0].changed);
+    const auto& rows = plan->folders[0].rows;
+    // unnamed first, apps A-Z, then folders A-Z ("Wii" before "Wii U")
+    const char* want[] = {"0005001010055000", "Aroma Updater", "Daily Log", "Mii Maker", "Wii U Chat", "Wii", "Wii U"};
+    CHECK(rows.size() == 7);
+    for (std::size_t i = 0; i < rows.size() && i < 7; ++i) CHECK(rows[i].name == want[i]);
+    CHECK(!rows[1].folder && rows[5].folder && !rows[0].known);
+    auto lay = layout::Layout::parse(plan->sorted);
+    auto packed = lay->homeItems();
+    CHECK(packed.size() == 7 && packed[0].type == 5 && packed[5].id.lo == 2 && packed[6].id.lo == 1);
+    // folder games sorted too: Apple before Zebra
+    CHECK(lay->folder(1).items[0].id.lo == 0x10);
+    // second pass finds nothing left to do
+    auto again = tasks::planSort(plan->sorted, names, sorter::parseRules(kDefaultRules));
+    CHECK(again && again->changedFolders == 0);
 }
 
 // ------------------------------------------------- real files (optional) --
@@ -351,6 +504,9 @@ int main() {
     testTitles();
     testBadge();
     testTasks();
+    testHome();
+    testHomebrewNames();
+    testHomePlan();
     testRealFiles();
     std::printf(g_failed ? "%d FAILED\n" : "all tests passed\n", g_failed);
     return g_failed ? 1 : 0;

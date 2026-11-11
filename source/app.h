@@ -64,6 +64,7 @@ private:
     void showMessage(const std::string& title, const std::string& body, gfx::Color color, Screen back);
     Icon& icon(const titles::Title& t);
     void dropIcon(std::uint64_t id);
+    std::string folderTitle(const tasks::FolderPlan& f) const;
     std::string layoutLabel(const tasks::LayoutFile& f) const;
     std::string statusText(tasks::Status s) const;
     int movesIn(const tasks::FolderPlan& f) const;
@@ -79,7 +80,8 @@ private:
     // data
     std::vector<sorter::Rule> rules_;
     std::vector<tasks::LayoutFile> layouts_;
-    std::map<std::uint64_t, titles::Title> catalog_;
+    std::map<std::uint64_t, titles::Title> catalog_;   ///< Installed games (the Mark screen list).
+    std::map<std::uint64_t, titles::Title> allNames_;  ///< Games, system apps and homebrew, for sorting.
     std::vector<const titles::Title*> markList_;
     std::map<std::uint64_t, Icon> icons_;
     int homeGames_ = 0;

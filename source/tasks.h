@@ -50,11 +50,12 @@ struct PlanRow {
     bool known = true;  ///< False when the title is not installed (shown by id, kept last).
     int from = 0;       ///< Position before, 0-based.
     int to = 0;         ///< Position after, 0-based.
+    bool folder = false; ///< A folder icon on the Home (not an app or game).
 };
 
 /// Preview of one folder.
 struct FolderPlan {
-    int number = 0;
+    int number = 0;              ///< 0 is the Home pages themselves, 1.. are folders.
     std::string name;
     std::vector<PlanRow> rows;   ///< In the new order.
     bool changed = false;
@@ -86,6 +87,7 @@ std::optional<SortPlan> planSort(const std::vector<std::uint8_t>& layoutBytes,
 struct Result {
     Status status = Status::Ok;
     std::string backupPath;
+    bool approximate = false;  ///< unmark without a saved original: pixels were rebuilt
 };
 
 /// Writes a planned sort: re-checks the file, saves a backup, writes, reads back.
@@ -110,7 +112,8 @@ IconState iconState(const titles::Title& title);
 /// Draws the badge on the icon, saving the original first (once).
 Result markIcon(const titles::Title& title, const std::string& backupDir);
 
-/// Restores the original icon saved by markIcon().
+/// Restores the original icon saved by markIcon(). Without a saved original (a mark made
+/// by an older tool) the badge area is rebuilt from its surroundings and `approximate` is set.
 Result unmarkIcon(const titles::Title& title, const std::string& backupDir);
 
 }  // namespace tasks

@@ -36,4 +36,18 @@ std::string nameFromMeta(const std::string& xml);
 ///     Titles by id; a title found in several roots keeps the first one.
 std::map<std::uint64_t, Title> scan(const std::vector<std::string>& roots);
 
+/// Names of the system apps (Mii Maker, Settings...) from `<mlcRoot>/sys/title/00050010`.
+std::map<std::uint64_t, Title> scanSystemApps(const std::string& mlcRoot);
+
+/// Id the Homebrew on Menu plugin gives an app: 0x0005000F00000000 | hash of
+/// the path relative to the SD root (e.g. "wiiu/apps/NUSspli/NUSspli.wuhb").
+std::uint64_t homebrewId(const std::string& relativePath);
+
+/// Name from the `longname=` line of a .wuhb meta.ini (stored near the end of the file).
+std::string nameFromWuhbMeta(const std::vector<std::uint8_t>& tail);
+
+/// Finds the .wuhb/.rpx apps under `<sdRoot>/wiiu/apps` (up to two levels deep) and names them
+/// like the plugin does. The name comes from the .wuhb meta, else from the file name.
+std::map<std::uint64_t, Title> scanHomebrew(const std::string& sdRoot);
+
 }  // namespace titles

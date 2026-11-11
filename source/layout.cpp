@@ -80,6 +80,48 @@ Folder Layout::folder(int number) const {
     return f;
 }
 
+std::vector<Item> Layout::homeItems(bool* ambiguous) const {
+    std::vector<Item> items;
+    if (ambiguous) *ambiguous = false;
+    for (std::size_t i = 0; i < kHomeSlots; ++i) {
+        const std::uint8_t* n = data_.data() + i * kEntrySize;
+        const std::uint8_t* u = data_.data() + kHomeUsbBase + i * kEntrySize;
+        const bool hasN = !isEmpty(n);
+        const bool hasU = !isEmpty(u);
+        if (hasN && hasU && ambiguous) *ambiguous = true;
+        if (!hasN && !hasU) continue;
+        const std::uint8_t* e = hasN ? n : u;
+        items.push_back({{be32(e), be32(e + 4)}, be32(e + 8), !hasN});
+    }
+    return items;
+}
+
+bool Layout::setHomeOrder(const std::vector<Item>& order) {
+    bool ambiguous = false;
+    std::vector<Item> pool = homeItems(&ambiguous);
+    if (ambiguous || order.size() != pool.size()) return false;
+    for (const Item& want : order) {
+        auto it = std::find_if(pool.begin(), pool.end(), [&](const Item& x) {
+            return x.id == want.id && x.type == want.type && x.onUsb == want.onUsb;
+        });
+        if (it == pool.end()) return false;
+        pool.erase(it);
+    }
+    for (std::size_t i = 0; i < kHomeSlots; ++i) {
+        std::uint8_t* n = data_.data() + i * kEntrySize;
+        std::uint8_t* u = data_.data() + kHomeUsbBase + i * kEntrySize;
+        writeEmpty(n, kEmptyNandType);
+        writeEmpty(u, kEmptyUsbType);
+        if (i >= order.size()) continue;
+        std::uint8_t* e = order[i].onUsb ? u : n;
+        putBe32(e, order[i].id.hi);
+        putBe32(e + 4, order[i].id.lo);
+        putBe32(e + 8, order[i].type);
+        putBe32(e + 12, 0);
+    }
+    return true;
+}
+
 bool Layout::setOrder(int number, const std::vector<TitleId>& order) {
     if (number < 1 || number > folderCount_) return false;
     const Folder current = folder(number);

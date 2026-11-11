@@ -54,6 +54,68 @@ std::optional<SortPlan> planSort(const std::vector<std::uint8_t>& layoutBytes,
 
     SortPlan plan;
     plan.original = layoutBytes;
+
+    // Home pages: unnamed system icons first (as they are), then apps A-Z, then folders A-Z,
+    // packed with no gaps. The games inside the folders are handled below.
+    {
+        bool ambiguous = false;
+        const std::vector<layout::Item> items = lay.homeItems(&ambiguous);
+        struct HomeEntry {
+            layout::Item item;
+            PlanRow row;
+            int group;  // 0 unnamed, 1 app, 2 folder
+            sorter::Key key;
+        };
+        std::vector<HomeEntry> entries;
+        for (std::size_t i = 0; i < items.size(); ++i) {
+            HomeEntry e;
+            e.item = items[i];
+            e.row.id = items[i].id;
+            e.row.from = int(i);
+            e.row.folder = items[i].type == layout::kFolderType;
+            if (e.row.folder) {
+                const int num = int(items[i].id.lo);
+                e.row.name = num >= 1 && num <= lay.folderCount() ? lay.folder(num).name : "";
+                if (e.row.name.empty()) e.row.name = "Folder " + std::to_string(num);
+                e.group = 2;
+            } else {
+                auto it = catalog.find(items[i].id.value());
+                e.row.known = it != catalog.end();
+                e.row.name = e.row.known ? it->second.name : hex16(items[i].id.value());
+                e.group = e.row.known ? 1 : 0;
+            }
+            e.key = sorter::makeKey(e.row.name, {});  // no series table for apps and folders
+            entries.push_back(e);
+        }
+        FolderPlan fp;
+        fp.number = 0;
+        fp.skipped = ambiguous || entries.empty();
+        if (!fp.skipped) {
+            std::stable_sort(entries.begin(), entries.end(), [](const HomeEntry& a, const HomeEntry& b) {
+                if (a.group != b.group) return a.group < b.group;
+                if (a.group == 0) return false;  // keep unnamed icons where they were
+                return sorter::less(a.key, b.key);
+            });
+            std::vector<layout::Item> order;
+            for (std::size_t i = 0; i < entries.size(); ++i) {
+                entries[i].row.to = int(i);
+                order.push_back(entries[i].item);
+            }
+            // "changed" also covers gaps: a packed Home differs from the stored one.
+            bool moved = false;
+            for (const auto& e : entries) moved = moved || e.row.from != e.row.to;
+            const auto before = lay.bytes();
+            if (lay.setHomeOrder(order)) {
+                fp.changed = moved || lay.bytes() != before;
+            } else {
+                fp.skipped = true;
+            }
+        }
+        for (const auto& e : entries) fp.rows.push_back(e.row);
+        plan.changedFolders += fp.changed ? 1 : 0;
+        if (!entries.empty()) plan.folders.push_back(std::move(fp));
+    }
+
     for (int n = 1; n <= lay.folderCount(); ++n) {
         const layout::Folder f = lay.folder(n);
         if (f.items.empty()) continue;
@@ -156,7 +218,17 @@ Result unmarkIcon(const titles::Title& title, const std::string& backupDir) {
     Result r;
     r.backupPath = iconBackupPath(title, backupDir);
     std::vector<std::uint8_t> original;
-    if (!fsx::readBytes(r.backupPath, original)) return {Status::NoBackup, ""};
+    if (!fsx::readBytes(r.backupPath, original)) {
+        // No saved original (marked by an older tool): rebuild the covered pixels instead of failing.
+        std::vector<std::uint8_t> now;
+        if (!fsx::readBytes(iconPath(title), now) || !badge::isMarked(now)) return {Status::NoBackup, ""};
+        if (!badge::erase(now)) return {Status::Unsupported, ""};
+        if (!fsx::writeBytes(iconPath(title), now)) return {Status::WriteFailed, ""};
+        if (!fileEquals(iconPath(title), now)) return {Status::VerifyFailed, ""};
+        r.backupPath.clear();
+        r.approximate = true;
+        return r;
+    }
     if (!fsx::writeBytes(iconPath(title), original)) return {Status::WriteFailed, r.backupPath};
     if (!fileEquals(iconPath(title), original)) return {Status::VerifyFailed, r.backupPath};
     return r;

@@ -39,6 +39,9 @@ def tga(seed: int) -> bytes:
 def main(out: Path) -> None:
     random.seed(7)
     layout = bytearray(0xAA for _ in range(0x2D24 + 60 * 1976))
+    for i in range(300):  # empty Home pages
+        put(layout, i * 16, 0, 0, 1)
+        put(layout, 0x12C0 + i * 16, 0, 0, 2)
     for f in range(60):
         base = 0x2D24 + f * 1976
         for i in range(60):
@@ -59,6 +62,17 @@ def main(out: Path) -> None:
             (tdir / "meta.xml").write_text(f'<?xml version="1.0"?><menu><longname_en>{title}</longname_en></menu>',
                                            encoding="utf-8")
             (tdir / "iconTex.tga").write_bytes(tga(idx + folder * 31))
+    # Home pages: system apps with gaps, plus the two folders
+    sysapps = {0x1004a200: "Mii Maker", 0x10047200: "System Settings", 0x1005a200: "Wii U Chat", 0x1004c200: "Daily Log"}
+    slot = {0x1005a200: 0, 0x10047200: 2, 0x1004a200: 5, 0x1004c200: 9}
+    for lo, name in sysapps.items():
+        put(layout, slot[lo] * 16, 0x00050010, lo, 1)
+        meta = out / "mlc/sys/title/00050010" / f"{lo:08x}" / "meta"
+        meta.mkdir(parents=True, exist_ok=True)
+        (meta / "meta.xml").write_text(f'<menu><longname_en type="string" length="512">{name}</longname_en></menu>')
+    put(layout, 15 * 16, 0x00050010, 0x10055000, 5)  # a system icon with no readable name
+    put(layout, 21 * 16, 0, 1, 0x10)
+    put(layout, 23 * 16, 0, 2, 0x10)
     lay_dir = out / "sd/wiiu/homebrew_on_menu_plugin/FEH100000000/save/80000006"
     lay_dir.mkdir(parents=True, exist_ok=True)
     (lay_dir / "BaristaAccountSaveFile.dat").write_bytes(layout)
