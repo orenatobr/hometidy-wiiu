@@ -63,13 +63,23 @@ std::string collapse(const std::string& s) {
     return out;
 }
 
+// Text of <tag ...>text</tag>. Real meta.xml files put attributes on every tag
+// (`<longname_en type="string" length="512">`), and may start with a BOM.
 std::string tagText(const std::string& xml, const std::string& tag) {
-    const std::string open = "<" + tag + ">";
-    const auto b = xml.find(open);
-    if (b == std::string::npos) return "";
-    const auto e = xml.find("</" + tag + ">", b);
-    if (e == std::string::npos) return "";
-    return collapse(decodeEntities(xml.substr(b + open.size(), e - b - open.size())));
+    const std::string open = "<" + tag;
+    for (std::size_t b = xml.find(open); b != std::string::npos; b = xml.find(open, b + 1)) {
+        const std::size_t after = b + open.size();
+        if (after >= xml.size()) return "";
+        const char next = xml[after];
+        if (next != '>' && next != ' ' && next != '\t' && next != '\r' && next != '\n' && next != '/') continue;  // longer tag name
+        const std::size_t gt = xml.find('>', after);
+        if (gt == std::string::npos) return "";
+        if (xml[gt - 1] == '/') return "";  // <tag/>: empty
+        const std::size_t end = xml.find("</" + tag + ">", gt);
+        if (end == std::string::npos) return "";
+        return collapse(decodeEntities(xml.substr(gt + 1, end - gt - 1)));
+    }
+    return "";
 }
 
 }  // namespace

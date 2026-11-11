@@ -23,7 +23,7 @@ constexpr int kGridRows = 2;
 constexpr int kTileW = 152;
 constexpr int kTileH = 206;
 constexpr int kTileGap = 16;
-constexpr const char* kVersion = "v1.0.0";
+constexpr const char* kVersion = "v1.0.1";
 
 std::string fmt(const char* f, int a) {
     char b[256];
