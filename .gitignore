@@ -1,0 +1,10 @@
+build/
+*.elf
+*.rpx
+*.wuhb
+*.map
+*.lst
+fake_console/
+__pycache__/
+.DS_Store
+._*

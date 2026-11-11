@@ -1,0 +1,26 @@
+name: build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: tests/run.sh
+
+  wuhb:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the .wuhb in the devkitPPC container
+        run: |
+          docker build -t hometidy_builder .
+          docker run --rm -v "$PWD":/project hometidy_builder make
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HomeTidy.wuhb
+          path: HomeTidy.wuhb
