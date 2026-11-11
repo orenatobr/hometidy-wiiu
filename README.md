@@ -2,7 +2,7 @@
 
 A Wii U Aroma app that does two chores you would otherwise do over FTP:
 
-1. **Sort Home**: puts the games of every Home folder in alphabetical order. Games of one series go by release year (see [Series table](#series-table)).
+1. **Sort Home**: puts the Home in order (apps A-Z, then the folders as they are, no empty positions) and the games of every folder in alphabetical order. Games of one series go by release year (see [Series table](#series-table)).
 2. **Mark as completed**: draws a green check on the icon of a game you finished. You can remove it later.
 
 It runs on the console, with the GamePad or a Pro Controller. No computer needed.

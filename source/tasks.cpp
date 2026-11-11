@@ -55,8 +55,8 @@ std::optional<SortPlan> planSort(const std::vector<std::uint8_t>& layoutBytes,
     SortPlan plan;
     plan.original = layoutBytes;
 
-    // Home pages: unnamed system icons first (as they are), then apps A-Z, then folders A-Z,
-    // packed with no gaps. The games inside the folders are handled below.
+    // Home pages: unnamed system icons first (as they are), then apps A-Z, then folders (in their
+    // current order), packed with no gaps. The games inside the folders are handled below.
     {
         bool ambiguous = false;
         const std::vector<layout::Item> items = lay.homeItems(&ambiguous);
@@ -93,7 +93,7 @@ std::optional<SortPlan> planSort(const std::vector<std::uint8_t>& layoutBytes,
         if (!fp.skipped) {
             std::stable_sort(entries.begin(), entries.end(), [](const HomeEntry& a, const HomeEntry& b) {
                 if (a.group != b.group) return a.group < b.group;
-                if (a.group == 0) return false;  // keep unnamed icons where they were
+                if (a.group != 1) return false;  // unnamed icons and folders keep the order they have
                 return sorter::less(a.key, b.key);
             });
             std::vector<layout::Item> order;

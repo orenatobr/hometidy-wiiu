@@ -429,7 +429,7 @@ static void testHomePlan() {
     setHome(raw, false, 2, 0x50010, 0x1005a200, 1);   // Wii U Chat
     setHome(raw, false, 3, 0x5000f, 0x716c9ba1, 1);   // Aroma Updater
     setHome(raw, false, 4, 0x50010, 0x1004c200, 1);   // Daily Log
-    setHome(raw, false, 21, 0, 1, layout::kFolderType);
+    setHome(raw, false, 21, 0, 1, layout::kFolderType);  // "Wii U" is first, and stays first
     setHome(raw, false, 23, 0, 2, layout::kFolderType);
     const std::size_t info1 = layout::kFolderBase + layout::kInfoOffset;
     const std::size_t info2 = layout::kFolderBase + layout::kFolderStride + layout::kInfoOffset;
@@ -451,14 +451,14 @@ static void testHomePlan() {
     auto plan = tasks::planSort(raw, names, sorter::parseRules(kDefaultRules));
     CHECK(plan && plan->folders.size() == 2 && plan->folders[0].number == 0 && plan->folders[0].changed);
     const auto& rows = plan->folders[0].rows;
-    // unnamed first, apps A-Z, then folders A-Z ("Wii" before "Wii U")
-    const char* want[] = {"0005001010055000", "Aroma Updater", "Daily Log", "Mii Maker", "Wii U Chat", "Wii", "Wii U"};
+    // unnamed first, apps A-Z, then the folders in their current order (Wii U was before Wii)
+    const char* want[] = {"0005001010055000", "Aroma Updater", "Daily Log", "Mii Maker", "Wii U Chat", "Wii U", "Wii"};
     CHECK(rows.size() == 7);
     for (std::size_t i = 0; i < rows.size() && i < 7; ++i) CHECK(rows[i].name == want[i]);
     CHECK(!rows[1].folder && rows[5].folder && !rows[0].known);
     auto lay = layout::Layout::parse(plan->sorted);
     auto packed = lay->homeItems();
-    CHECK(packed.size() == 7 && packed[0].type == 5 && packed[5].id.lo == 2 && packed[6].id.lo == 1);
+    CHECK(packed.size() == 7 && packed[0].type == 5 && packed[5].id.lo == 1 && packed[6].id.lo == 2);
     // folder games sorted too: Apple before Zebra
     CHECK(lay->folder(1).items[0].id.lo == 0x10);
     // second pass finds nothing left to do
