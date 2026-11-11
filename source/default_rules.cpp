@@ -8,8 +8,8 @@ const char* kDefaultRules = R"RULES(
 hyrule warriors            | zelda | 2014
 ocarina of time            | zelda | 1998
 majoras mask               | zelda | 2000
-wind waker                 | zelda | 2003
-twilight princess          | zelda | 2006
+wind waker                 | zelda | 2013   # HD release, as in the order approved on the console
+twilight princess          | zelda | 2016   # HD release
 skyward sword              | zelda | 2011
 breath of the wild         | zelda | 2017
 link to the past           | zelda | 1991
@@ -29,24 +29,23 @@ luigis mansion            | luigis mansion | 2001
 captain toad               | captain toad | 2014
 yoshis                    | yoshi | 2015
 yoshi                      | yoshi | 1991
-wario                      | wario | 2003
 # --- Mario platformers
-super mario sunshine       | mario | 2002
-super mario galaxy more    | mario | 2010
-super mario galaxy 2       | mario | 2010
-super mario galaxy         | mario | 2007
-new super mario bros u     | mario | 2012
-new super mario bros wii   | mario | 2009
-new super mario bros       | mario | 2006
-super mario 3d world       | mario | 2013
-super mario maker          | mario | 2015
-super mario world          | mario | 1990
-super mario bros 3         | mario | 1988
-super mario bros 2         | mario | 1988
-super mario bros           | mario | 1985
-super mario all stars      | mario | 1993
-super mario 64             | mario | 1996
-super mario                | mario | 1990
+super mario sunshine       | super mario | 2002
+super mario galaxy more    | super mario | 2010
+super mario galaxy 2       | super mario | 2010
+super mario galaxy         | super mario | 2007
+new super mario bros u     | super mario | 2012
+new super mario bros wii   | super mario | 2009
+new super mario bros       | super mario | 2006
+super mario 3d world       | super mario | 2013
+super mario maker          | super mario | 2015
+super mario world          | super mario | 1990
+super mario bros 3         | super mario | 1988
+super mario bros 2         | super mario | 1988
+super mario bros           | super mario | 1985
+super mario all stars      | super mario | 1993
+super mario 64             | super mario | 1996
+super mario                | super mario | 1990
 # --- Other Nintendo series
 donkey kong country tropical | donkey kong | 2014
 donkey kong country returns  | donkey kong | 2010
