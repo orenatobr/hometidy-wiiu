@@ -99,6 +99,17 @@ just dance                   | just dance | 2014
 call of duty                 | call of duty | 2012
 assassins creed             | assassins creed | 2012
 resident evil                | resident evil | 2002
+sonic adventure 2            | sonic | 2001
+sonic adventure              | sonic | 1998   # also matches DX, which ports the 1998 original
+sonic mega collection        | sonic | 2002
+sonic heroes                 | sonic | 2003
+sonic gems collection        | sonic | 2005
+sonic riders                 | sonic | 2006
+sonic and the secret rings   | sonic | 2007
+sonic unleashed              | sonic | 2008
+sonic colors                 | sonic | 2010
+sonic generations            | sonic | 2011
+sonic lost world             | sonic | 2013
 sonic                        | sonic | 1991
 final fight                  | final fight | 1991
 street fighter               | street fighter | 1991

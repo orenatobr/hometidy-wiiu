@@ -139,6 +139,17 @@ static void testSorter() {
     CHECK(names == want);
     if (names != want) for (auto& n : names) std::printf("   got: %s\n", n.c_str());
 
+    // Sonic Adventure DX (1998 original) comes before Sonic Adventure 2 (2001).
+    std::vector<std::string> sonic = {"Sonic Adventure 2 Battle", "Sonic Heroes", "Sonic Adventure DX: Director's Cut",
+                                      "Sonic Mega Collection Plus"};
+    std::sort(sonic.begin(), sonic.end(), [&](const std::string& a, const std::string& b) {
+        return sorter::less(sorter::makeKey(a, def), sorter::makeKey(b, def));
+    });
+    const std::vector<std::string> wantSonic = {"Sonic Adventure DX: Director's Cut", "Sonic Adventure 2 Battle",
+                                                "Sonic Mega Collection Plus", "Sonic Heroes"};
+    CHECK(sonic == wantSonic);
+    if (sonic != wantSonic) for (auto& n : sonic) std::printf("   got: %s\n", n.c_str());
+
     // names without spaces, as in some Wii forwarders, still match the table
     {
         const auto a = sorter::makeKey("MarioKartWii", def);
