@@ -98,7 +98,11 @@ lego                         | lego | 2013
 just dance                   | just dance | 2014
 call of duty                 | call of duty | 2012
 assassins creed             | assassins creed | 2012
-resident evil                | resident evil | 2002
+resident evil zero           | resident evil | 2001   # series order: 0 comes first (real release: 2002)
+resident evil 0              | resident evil | 2001
+resident evil code veronica  | resident evil | 2003
+resident evil 4              | resident evil | 2005
+resident evil                | resident evil | 2002   # the 2002 remake of the first game
 sonic adventure 2            | sonic | 2001
 sonic adventure              | sonic | 1998   # also matches DX, which ports the 1998 original
 sonic mega collection        | sonic | 2002

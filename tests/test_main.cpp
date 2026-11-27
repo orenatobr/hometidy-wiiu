@@ -150,6 +150,17 @@ static void testSorter() {
     CHECK(sonic == wantSonic);
     if (sonic != wantSonic) for (auto& n : sonic) std::printf("   got: %s\n", n.c_str());
 
+    // Resident Evil (GameCube) follows the series order: 0, 1 (remake), Code Veronica X, 4.
+    std::vector<std::string> re = {"Resident Evil 4", "Resident Evil Code: Veronica X", "Resident Evil",
+                                   "Resident Evil 0"};
+    std::sort(re.begin(), re.end(), [&](const std::string& a, const std::string& b) {
+        return sorter::less(sorter::makeKey(a, def), sorter::makeKey(b, def));
+    });
+    const std::vector<std::string> wantRe = {"Resident Evil 0", "Resident Evil", "Resident Evil Code: Veronica X",
+                                             "Resident Evil 4"};
+    CHECK(re == wantRe);
+    if (re != wantRe) for (auto& n : re) std::printf("   got: %s\n", n.c_str());
+
     // names without spaces, as in some Wii forwarders, still match the table
     {
         const auto a = sorter::makeKey("MarioKartWii", def);
